@@ -1,0 +1,262 @@
+{
+  "info": {
+    "name": "Inventory & Catalog Service - Redis Multi-Tier Caching",
+    "description": "Covers the composite L1(Caffeine)+L2(Redis) path, the declarative @Cacheable path, Redis Hash partial stock updates, ZSET trending leaderboard, and Actuator endpoints used to observe cache/circuit-breaker state during resilience testing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "a1e6f8d2-4c1b-4b7a-9c3e-inventory-catalog-svc"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "productId", "value": "SKU-001", "type": "string" },
+    { "key": "unknownProductId", "value": "does-not-exist-12345", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Product CRUD (Composite L1+L2 path)",
+      "item": [
+        {
+          "name": "Create/Update Product",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/v1/products", "host": ["{{baseUrl}}"], "path": ["api","v1","products"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{productId}}\",\n  \"sku\": \"{{productId}}\",\n  \"name\": \"Wireless Mouse\",\n  \"description\": \"Ergonomic wireless mouse\",\n  \"category\": \"electronics\",\n  \"price\": 24.99,\n  \"stockLevel\": 250\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has id', () => pm.expect(pm.response.json().id).to.eql(pm.variables.get('productId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Product (L1 -> L2 -> DB, stampede + bloom filter protected)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Body has expected id', () => pm.expect(pm.response.json().id).to.eql(pm.variables.get('productId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Product Again (expect L1 hit - repeat 3-4x and compare console logs)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}"] }
+          }
+        },
+        {
+          "name": "Get Product - Annotated @Cacheable path (L2 only)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/annotated/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","annotated","{{productId}}"] }
+          }
+        },
+        {
+          "name": "Get Unknown Product (expect 404, bloom filter short-circuit)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{unknownProductId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{unknownProductId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Stock - Redis Hash (HSET/HINCRBY)",
+      "item": [
+        {
+          "name": "Recreate Product (setup)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/v1/products", "host": ["{{baseUrl}}"], "path": ["api","v1","products"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{productId}}\",\n  \"sku\": \"{{productId}}\",\n  \"name\": \"Wireless Mouse\",\n  \"description\": \"Ergonomic wireless mouse\",\n  \"category\": \"electronics\",\n  \"price\": 24.99,\n  \"stockLevel\": 250\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial Stock Update (HSET, multi-field)",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}/stock?newStockLevel=180", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}","stock"], "query": [ { "key": "newStockLevel", "value": "180" } ] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [ "pm.test('Status is 204', () => pm.response.to.have.status(204));" ] }
+            }
+          ]
+        },
+        {
+          "name": "Decrement Stock Atomically (HINCRBY)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}/stock/decrement?quantity=5", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}","stock","decrement"], "query": [ { "key": "quantity", "value": "5" } ] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has remaining field', () => pm.expect(pm.response.json()).to.have.property('remaining'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Product (confirm cached copy was evicted after stock write)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Trending - ZSET (ZINCRBY/ZREVRANGE)",
+      "item": [
+        {
+          "name": "Record View (ZINCRBY +1)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}"] },
+            "description": "Every GET on the composite path calls recordProductView(), which ZINCRBYs the trending set."
+          }
+        },
+        {
+          "name": "Record Purchase (ZINCRBY +quantity*5)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/{{productId}}/purchase?quantity=2", "host": ["{{baseUrl}}"], "path": ["api","v1","products","{{productId}}","purchase"], "query": [ { "key": "quantity", "value": "2" } ] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [ "pm.test('Status is 204', () => pm.response.to.have.status(204));" ] }
+            }
+          ]
+        },
+        {
+          "name": "Get Trending Products (ZREVRANGE WITHSCORES)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/products/trending?topN=10", "host": ["{{baseUrl}}"], "path": ["api","v1","products","trending"], "query": [ { "key": "topN", "value": "10" } ] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Resilience & Observability (Actuator)",
+      "item": [
+        {
+          "name": "Health (overall, incl. Redis indicator)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator","health"] }
+          }
+        },
+        {
+          "name": "Caches (list registered Spring cache names)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/caches", "host": ["{{baseUrl}}"], "path": ["actuator","caches"] }
+          }
+        },
+        {
+          "name": "Circuit Breakers (redisCache instance state)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/circuitbreakers", "host": ["{{baseUrl}}"], "path": ["actuator","circuitbreakers"] }
+          }
+        },
+        {
+          "name": "Circuit Breaker Events (state transitions over time)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/circuitbreakerevents", "host": ["{{baseUrl}}"], "path": ["actuator","circuitbreakerevents"] }
+          }
+        },
+        {
+          "name": "Metrics Index",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/metrics", "host": ["{{baseUrl}}"], "path": ["actuator","metrics"] }
+          }
+        },
+        {
+          "name": "Cache Hit/Miss Metric (spring.cache.gets)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/metrics/spring.cache.gets?tag=cache:product-details", "host": ["{{baseUrl}}"], "path": ["actuator","metrics","spring.cache.gets"], "query": [ { "key": "tag", "value": "cache:product-details" } ] }
+          }
+        },
+        {
+          "name": "Prometheus Scrape Endpoint",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/prometheus", "host": ["{{baseUrl}}"], "path": ["actuator","prometheus"] }
+          }
+        }
+      ]
+    }
+  ]
+}

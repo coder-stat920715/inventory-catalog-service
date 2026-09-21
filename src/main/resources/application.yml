@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: inventory-catalog-service
+
+  # ---- Primary datastore (swap H2 -> Postgres in real prod) ----
+  datasource:
+    url: jdbc:h2:mem:inventorydb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  # ---- Redis / Lettuce connection pool ----
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms          # command timeout
+      connect-timeout: 1500ms
+      client-type: lettuce
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 32       # max concurrent connections
+          max-idle: 16
+          min-idle: 4
+          max-wait: 1000ms
+        shutdown-timeout: 200ms
+
+  cache:
+    type: redis
+
+# ---- Redisson (distributed locks, bloom filter, sorted sets) ----
+redisson:
+  address: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+  connection-pool-size: 24
+  connection-minimum-idle-size: 6
+  lock-watchdog-timeout: 30000
+  retry-attempts: 3
+  retry-interval: 1500
+
+# ---- Application-level per-cache TTL config (consumed by CacheConfig) ----
+app:
+  cache:
+    l1:
+      # Caffeine local cache - very short-lived, small, hot-key only
+      max-size: 5000
+      expire-after-write-seconds: 30
+    l2:
+      # Redis distributed cache TTLs, per logical cache name
+      ttls:
+        product-details: 600s      # 10 minutes
+        product-stock: 120s        # 2 minutes - changes more frequently
+        trending-products: 300s    # 5 minutes (ZSET based, refreshed by job)
+        flash-sale: 30s            # 30 seconds - very volatile
+        product-not-found: 60s     # negative/null-value cache for penetration protection
+      jitter-percent: 20           # +/- 20% randomized jitter to avoid avalanche
+    pubsub:
+      invalidation-channel: "cache:invalidate:l1"
+    stampede:
+      lock-wait-seconds: 5
+      lock-lease-seconds: 10
+    bloom-filter:
+      name: "bf:product-ids"
+      expected-insertions: 1000000
+      false-positive-rate: 0.01
+
+# ---- Resilience4j circuit breaker around Redis calls ----
+resilience4j:
+  circuitbreaker:
+    instances:
+      redisCache:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        slow-call-duration-threshold: 1s
+        slow-call-rate-threshold: 80
+  timelimiter:
+    instances:
+      redisCache:
+        timeout-duration: 1500ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,caches,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    circuitbreakers:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.data.redis: INFO
+    org.redisson: INFO
+    com.publicissapient.inventory: DEBUG
+
+server:
+  port: 8080
+  shutdown: graceful
