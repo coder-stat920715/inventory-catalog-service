@@ -1,7 +1,7 @@
-package com.publicissapient.inventory.controller;
+package com.souptik.inventory.controller;
 
-import com.publicissapient.inventory.model.Product;
-import com.publicissapient.inventory.service.InventoryService;
+import com.souptik.inventory.model.Product;
+import com.souptik.inventory.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.http.ResponseEntity;

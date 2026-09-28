@@ -1,4 +1,4 @@
-package com.publicissapient.inventory.pubsub;
+package com.souptik.inventory.pubsub;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Message broadcast on the Redis Pub/Sub invalidation channel whenever an instance

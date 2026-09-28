@@ -1,9 +1,9 @@
-package com.publicissapient.inventory.integration;
+package com.souptik.inventory.integration;
 
-import com.publicissapient.inventory.model.Product;
-import com.publicissapient.inventory.repository.ProductRepository;
-import com.publicissapient.inventory.service.InventoryService;
-import com.publicissapient.inventory.service.L1L2CacheService;
+import com.souptik.inventory.model.Product;
+import com.souptik.inventory.repository.ProductRepository;
+import com.souptik.inventory.service.InventoryService;
+import com.souptik.inventory.service.L1L2CacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;

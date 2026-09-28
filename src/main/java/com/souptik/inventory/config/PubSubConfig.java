@@ -1,6 +1,6 @@
-package com.publicissapient.inventory.config;
+package com.souptik.inventory.config;
 
-import com.publicissapient.inventory.pubsub.RedisPubSubListener;
+import com.souptik.inventory.pubsub.RedisPubSubListener;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

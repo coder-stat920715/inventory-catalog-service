@@ -1,4 +1,4 @@
-package com.publicissapient.inventory.config;
+package com.souptik.inventory.config;
  
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;

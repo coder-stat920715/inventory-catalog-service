@@ -1,4 +1,4 @@
-package com.publicissapient.inventory.pubsub;
+package com.souptik.inventory.pubsub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

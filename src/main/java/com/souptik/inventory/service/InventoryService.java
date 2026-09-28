@@ -1,8 +1,8 @@
-package com.publicissapient.inventory.service;
+package com.souptik.inventory.service;
 
-import com.publicissapient.inventory.model.Product;
-import com.publicissapient.inventory.pubsub.CacheInvalidationPublisher;
-import com.publicissapient.inventory.repository.ProductRepository;
+import com.souptik.inventory.model.Product;
+import com.souptik.inventory.pubsub.CacheInvalidationPublisher;
+import com.souptik.inventory.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -13,7 +13,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;

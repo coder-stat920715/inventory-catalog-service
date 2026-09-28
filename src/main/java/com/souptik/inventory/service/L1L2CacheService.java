@@ -1,9 +1,9 @@
-package com.publicissapient.inventory.service;
+package com.souptik.inventory.service;
 
-import com.publicissapient.inventory.config.CacheConfig;
-import com.publicissapient.inventory.model.Product;
-import com.publicissapient.inventory.pubsub.CacheInvalidationPublisher;
-import com.publicissapient.inventory.repository.ProductRepository;
+import com.souptik.inventory.config.CacheConfig;
+import com.souptik.inventory.model.Product;
+import com.souptik.inventory.pubsub.CacheInvalidationPublisher;
+import com.souptik.inventory.repository.ProductRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.publicissapient.inventory.config;
+package com.souptik.inventory.config;
 
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;

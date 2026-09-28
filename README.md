@@ -25,7 +25,7 @@ Testcontainers — Docker must be available to the test runner.
 ## Project layout
 
 ```
-src/main/java/com/publicissapient/inventory/
+src/main/java/com/souptik/inventory/
 ├── config/
 │   ├── CacheConfig.java        # RedisCacheManager (custom serializers, per-cache TTL+jitter),
 │   │                           # Caffeine L1 manager, CacheErrorHandler, RedisTemplate

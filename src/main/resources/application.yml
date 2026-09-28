@@ -110,7 +110,7 @@ logging:
   level:
     org.springframework.data.redis: INFO
     org.redisson: INFO
-    com.publicissapient.inventory: DEBUG
+    com.souptik.inventory: DEBUG
 
 server:
   port: 8080

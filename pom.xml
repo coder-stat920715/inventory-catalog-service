@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.publicissapient</groupId>
+    <groupId>com.souptik</groupId>
     <artifactId>inventory-catalog-service</artifactId>
     <version>1.0.0</version>
     <name>inventory-catalog-service</name>

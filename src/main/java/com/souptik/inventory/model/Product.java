@@ -1,4 +1,4 @@
-package com.publicissapient.inventory.model;
+package com.souptik.inventory.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
